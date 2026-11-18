@@ -1,0 +1,116 @@
+
+import pandas as pd
+import numpy as np
+
+# Reproducible generation
+np.random.seed(42)
+
+n = 1000
+
+# Target distribution
+fraud = np.array([1]*100 + [0]*900)
+np.random.shuffle(fraud)
+
+records = []
+
+for i in range(n):
+
+    is_fraud = fraud[i]
+
+    # Transaction type
+    if is_fraud:
+        tx_type = np.random.choice(
+            ["TRANSFER", "CASH_OUT"],
+            p=[0.7, 0.3]
+        )
+    else:
+        tx_type = np.random.choice(
+            ["CASH_IN", "CASH_OUT", "DEBIT",
+             "PAYMENT", "TRANSFER"],
+            p=[0.15, 0.2, 0.1, 0.4, 0.15]
+        )
+
+    # Transaction amount
+    if is_fraud:
+        amount = np.random.uniform(5000, 50000)
+    else:
+        amount = np.random.uniform(10, 5000)
+
+    # Account characteristics
+    account_age = (
+        np.random.randint(1, 90)
+        if is_fraud
+        else np.random.randint(90, 3000)
+    )
+
+    new_recipient = int(
+        np.random.random() < (0.75 if is_fraud else 0.15)
+    )
+
+    transactions_last_hour = (
+        np.random.randint(4, 12)
+        if is_fraud
+        else np.random.randint(0, 4)
+    )
+
+    # Account balances
+    old_sender = np.random.uniform(5000, 100000)
+    new_sender = max(0, old_sender - amount)
+
+    old_receiver = np.random.uniform(0, 50000)
+    new_receiver = old_receiver + amount
+
+    # Transaction descriptions
+    if new_recipient and transactions_last_hour >= 4:
+        description = (
+            "Multiple transactions sent to an unfamiliar recipient "
+            "within a short period."
+        )
+    elif new_recipient:
+        description = (
+            "Funds transferred to a recipient with no previous "
+            "transaction history."
+        )
+    elif transactions_last_hour >= 4:
+        description = (
+            "Several transactions completed within one hour."
+        )
+    else:
+        description = (
+            "Routine mobile money transaction to a known recipient."
+        )
+
+    records.append({
+        "step": np.random.randint(1, 744),
+        "type": tx_type,
+        "amount": round(amount, 2),
+        "nameOrig": f"C{1000000000+i}",
+        "oldbalanceOrg": round(old_sender, 2),
+        "newbalanceOrig": round(new_sender, 2),
+        "nameDest": f"M{2000000000+i}",
+        "oldbalanceDest": round(old_receiver, 2),
+        "newbalanceDest": round(new_receiver, 2),
+        "account_age_days": account_age,
+        "transactions_last_hour": transactions_last_hour,
+        "new_recipient": new_recipient,
+        "transaction_description": description,
+        "isFraud": is_fraud
+    })
+
+# Create DataFrame
+df = pd.DataFrame(records)
+
+# Save CSV
+df.to_csv(
+    "ai_generated_mobile_money_transactions.csv",
+    index=False
+)
+
+print("Dataset generated successfully!")
+print("Dataset shape:", df.shape)
+
+print("\nFraud distribution:")
+print(df["isFraud"].value_counts())
+
+print("\nFirst five records:")
+display(df.head())
